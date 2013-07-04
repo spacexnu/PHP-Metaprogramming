@@ -1,13 +1,13 @@
 <?php
-require 'Carro.php';
+require 'Car.php';
 
-$carro = new Carro ( 'Uno', '1995' );
+$car = new Car ( 'Uno', '1995' );
 
-$carro->ligar ();
-$carro->createNewMethod ( 'buzinar', null, ' return "biii bii\n";' );
-echo $carro->buzinar ( 1, 2 );
+$car->start ();
+$car->createNewMethod ( 'honk', null, ' return "fom fom\n";' );
+echo $car->honk ( 1, 2 );
 
-$carro->createNewMethod ( 'freiar', NULL, 'echo \'pisei no freio\';' );
-$carro->freiar ();
+$car->createNewMethod ( 'brake', NULL, 'echo \'break activated\';' );
+$car->break ();
 
 ?>

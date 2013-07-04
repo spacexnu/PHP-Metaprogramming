@@ -1,5 +1,5 @@
 <?php
-trait genMetodo {
+trait genMethod {
 	private $functionArgs;
 	public function createNewMethod($name, $args, $code) {
 		if ((! is_null ( $args )) && (sizeof ( $args ) == 0)) {
