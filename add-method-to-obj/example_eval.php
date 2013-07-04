@@ -13,7 +13,7 @@ eval ( $str );
 
 $fun = function() {
 	echo "faz alguma coisa";
-}
+};
 
 $car->algumaCoisa = $fun;
 
