@@ -1,60 +1,130 @@
 <?php
+declare(strict_types=1);
+
+namespace FormGeneratorAttributes;
+
+use ReflectionObject;
+use ReflectionProperty;
+use ReflectionAttribute;
+use Exception;
+
 /**
- * Form Generator Example
+ * Form Field Attribute
+ * 
+ * This attribute is used to define form field properties
+ */
+#[\Attribute(\Attribute::TARGET_PROPERTY)]
+class FormField {
+    /**
+     * Constructor
+     *
+     * @param string $type Input field type (text, email, number, etc.)
+     * @param string|null $label Custom label for the field
+     * @param bool $required Whether the field is required
+     * @param string|null $placeholder Placeholder text
+     * @param array $options Additional options for the field
+     */
+    public function __construct(
+        public string $type = 'text',
+        public ?string $label = null,
+        public bool $required = false,
+        public ?string $placeholder = null,
+        public array $options = []
+    ) {}
+}
+
+/**
+ * Modern Form Generator Example using PHP 8 Attributes
+ * 
+ * This abstract class uses reflection and PHP 8 attributes to generate
+ * HTML form fields based on the properties of a class that extends it.
  */
 abstract class ReflectionForm {
-	private $metadataFields;
-	public function __construct() {
-		$this->metadataFields = array ();
-	}
-	public function parse() {
-		$this->getFormInfo ();
-		$generated = '';
-		
-		foreach ( $this->metadataFields as $fieldName => $fieldParams ) {
-			
-			$generated .= "<div>" . ucfirst ( $fieldName ) . "</div>\n";
-			$generated .= "<div><input type=\"" . $fieldParams ['type'] . "\" name=\"" . $fieldName . "\" /></div>\n";
-		}
-		
-		return $generated;
-	}
-	private function getFormInfo() {
-		$r = new ReflectionObject ( $this );
-		
-		$fields = $r->getProperties ();
-		
-		array_walk ( $fields, function ($field) {
-			
-			$lines = array ();
-			
-			$doc = $field->getDocComment ();
-			if (preg_match ( '#^/\*\*(.*)\*/#s', $doc, $comment ) === false)
-				throw new Exception ( 'Error parsing docbloc' );
-			
-			$params = trim ( $comment [1] );
-			
-			if (preg_match_all ( '#^\s*\*(.*)#m', $params, $lines ) === false)
-				throw new Exception ( 'Error parsing docbloc 2' );
-			
-			foreach ( $lines [1] as $line ) {
-				$this->getVariables ( $field->getName (), $line );
-			}
-		} );
-	}
-	private function getVariables($fieldName, $line) {
-		$line = trim ( $line );
-		
-		if (empty ( $line ))
-			return false;
-		
-		if (strpos ( $line, '@' ) === 0) {
-			$param = substr ( $line, 1, strpos ( $line, ' ' ) - 1 );
-			$value = substr ( $line, strlen ( $param ) + 2 );
-			
-			$this->metadataFields [$fieldName] = array (
-					$param => $value 
-			);
-		}
-	}
+    /**
+     * Holds metadata about form fields
+     */
+    private array $metadataFields = [];
+
+    /**
+     * Generate HTML form fields based on class properties and their attributes
+     *
+     * @return string The generated HTML form
+     * @throws Exception If there's an error processing attributes
+     */
+    public function parse(): string {
+        $this->getFormInfo();
+        $generated = '';
+
+        foreach ($this->metadataFields as $fieldName => $fieldParams) {
+            $label = $fieldParams['label'] ?? ucfirst($fieldName);
+            $type = $fieldParams['type'] ?? 'text';
+            $required = $fieldParams['required'] ?? false;
+            $placeholder = $fieldParams['placeholder'] ?? '';
+
+            $generated .= "\t\t<div class=\"form-group\">\n";
+            $generated .= "\t\t\t<label for=\"{$fieldName}\">{$label}</label>\n";
+            $generated .= "\t\t\t<input type=\"{$type}\" name=\"{$fieldName}\" id=\"{$fieldName}\"";
+
+            if ($required) {
+                $generated .= " required";
+            }
+
+            if (!empty($placeholder)) {
+                $generated .= " placeholder=\"{$placeholder}\"";
+            }
+
+            // Add value if the property has a value
+            if (property_exists($this, $fieldName) && $this->$fieldName !== null) {
+                $generated .= " value=\"" . htmlspecialchars($this->$fieldName) . "\"";
+            }
+
+            $generated .= " class=\"form-control\">\n";
+            $generated .= "\t\t</div>\n";
+        }
+
+        return $generated;
+    }
+
+    /**
+     * Extract form field information from property attributes
+     *
+     * @throws Exception If there's an error processing attributes
+     */
+    private function getFormInfo(): void {
+        // Create a reflection object for the current instance
+        $reflection = new ReflectionObject($this);
+
+        // Get all properties of the class
+        $properties = $reflection->getProperties();
+
+        // Process each property
+        foreach ($properties as $property) {
+            // Get FormField attributes for the property
+            $attributes = $property->getAttributes(FormField::class);
+
+            if (!empty($attributes)) {
+                // Get the first FormField attribute
+                $formFieldAttribute = $attributes[0]->newInstance();
+
+                // Store the field metadata
+                $this->metadataFields[$property->getName()] = [
+                    'type' => $formFieldAttribute->type,
+                    'label' => $formFieldAttribute->label ?? ucfirst($property->getName()),
+                    'required' => $formFieldAttribute->required,
+                    'placeholder' => $formFieldAttribute->placeholder,
+                    'options' => $formFieldAttribute->options
+                ];
+            }
+        }
+    }
+
+    /**
+     * Get the value of a property
+     *
+     * @param string $property Property name
+     * @return mixed Property value or null if not found
+     */
+    protected function getPropertyValue(string $property) {
+        return property_exists($this, $property) ? $this->$property : null;
+    }
 }
